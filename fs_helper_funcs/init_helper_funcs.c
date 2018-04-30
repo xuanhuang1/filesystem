@@ -1,4 +1,6 @@
 #include "helper_funcs.h"
+#include <assert.h>
+#include <string.h>
 
 
 
@@ -8,7 +10,7 @@ int get_file_size(FILE *ptr_ipt, char** infile){
 	fseek(ptr_ipt, 0L, SEEK_END);
 	int sz = ftell(ptr_ipt);
 	rewind(ptr_ipt);
-	
+
 	*infile = (char*)malloc(sz+1);
 	memset(*infile, 0, sz);
 	(*infile)[sz] = '\0';
@@ -27,6 +29,7 @@ void set_spb(spb_t* spb, int i_offset, int d_offset, int block_size){
 
 void set_root(inode_t* root){
 	root->parent = -1;
+	root->isdir = 1;
 	root->children_num = 0;
 	root->nlink = 1;
 	root->dblocks[0] = 0;
@@ -50,8 +53,8 @@ int get_inode_count(spb_t spb){
 // load all globals into the gloabal struct
 void load_fs(spb_t spb, int user_in, inode_t* inodes_arr, int inodes_arr_len, char name[255], int db_num){
 	fs.spb = spb;
-	fs.users[SUPERUSER] = 0;
-	fs.users[USER] = 1;
+	fs.u_gid[SUPERUSER] = 1;
+	fs.u_gid[USER] = 1;
 	fs.user = user_in;
 
 
@@ -70,6 +73,7 @@ void load_fs(spb_t spb, int user_in, inode_t* inodes_arr, int inodes_arr_len, ch
     	c++;
   	}
 	fs.diskname[c] = '\0';
+	//printf("disk name %s is disk?%d \n", fs.diskname, strcmp(fs.diskname,"disk")==0);
 	fs.fs_num = 0;
 	fs.data_block_num = db_num;
 }

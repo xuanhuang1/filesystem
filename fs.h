@@ -3,20 +3,17 @@
 
 #define N_DBLOCKS 10
 #define N_IBLOCKS 4
-enum _utype{SUPERUSER, USER, MAXUSER};
+#define EMPTY_ENTRY  -1
 
-//file entry
-typedef struct{
-    int mode;      // read write exe
-    void* offset;     // current ptr offset
-    struct inode* ind;// ptr to the inode
-}f_entry_t;    
+#include <sys/stat.h>
 
-//file entry table
-typedef struct{
-    int length;        		// the length of the open file array, equal to the inode list length
-    f_entry_t *fs_files;    // array of open file entries, allocated when fs_init()
-}f_entry_table_t;
+enum _utype{SUPERUSER, USER, MAXUSER};   
+enum {SUCCESS, FAIL};
+enum {TRUE = 1, FALSE = 0};
+enum {R, W, X};
+
+
+
 
 //superblock
 typedef struct{
@@ -31,7 +28,7 @@ typedef struct{
 //inode
 typedef struct{
 	int parent;
-	int permissions; 		// r w x, user group other (3x3 table in total)
+	mode_t permission; 		// r w x, user group other (3x3 table in total)
 	int isdir;    			// file or directory
 	int nextfile;    		// directory ptr for f_readdir, the index of the next file
 	int children_num; 		// the number of children for the directory
@@ -50,6 +47,19 @@ typedef struct{
 	int i3block; 			/* pointer to triply indirect block */
 }inode_t;
 
+//file entry
+typedef struct{
+    int mode;      // read write exe
+    void* offset;     // current ptr offset
+    int ind;// ptr to the inode
+}f_entry_t; 
+
+
+//file entry table
+typedef struct{
+    int length;        		// the length of the open file array, equal to the inode list length
+    f_entry_t *open_files;    // array of open file entries, allocated when fs_init()
+}f_entry_table_t;
 /*
 directory
 directory is also represented by a inode, 
@@ -60,6 +70,10 @@ by their names[len=28]. When a file is deleted
 move the last inode index to the current position,
 decrement children_num for the directory inode
 */
+typedef struct{
+	int ind;
+	char name[28];
+}dir_entry_t;
 
 //stat
 typedef struct{
@@ -78,7 +92,8 @@ typedef struct fs_attr_t fs_attr_t;
 
 struct fs_attr_t{
 	spb_t spb;
-	int users[MAXUSER];    	// stores the group ID, the index is the user ID
+	int data_block_num;
+	int u_gid[MAXUSER];    	// stores the group ID, the index is the user ID
 	int user;         		// current user ID
 	inode_t *shell_d;
 	inode_t *root, *freeiHead;

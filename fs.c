@@ -1,126 +1,60 @@
 #include "fs.h"
+#include "fs_helper_funcs/helper_funcs.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 fs_attr_t fs;
 
-void set_spb(spb_t* spb, int i_offset, int d_offset, int block_size);
-void set_root(inode_t* root);
-void set_empty_inode(inode_t* empty_inode);
-void prt_spb(spb_t spb);
-void prt_root(inode_t root);
-void prt_inode(inode_t);
-void prt_data_region(spb_t t);
-
-// fread and check written size
-size_t read_f_with_fread();
-
-// return the number of inodes indicated in spb
-int get_inode_count(spb_t spb);
-
-// set file system globals
-void set_fs(spb_t spb, int user_in, inode_t* inodes_arr, int inodes_arr_len, char name[255]);
-
-void prt_fs();
-
-
-
-// one spb, one blk inodes, 2 data block (one for root)
-int test_create_disk(){
-	int spb_size = 512;
-	int block_size = 512;
-	int inode_b_num = 1;
-	int data_b_num = 4;
-
-	int i_offset = 0;
-	int d_offset = inode_b_num;
-	int total_b_num = i_offset + inode_b_num + data_b_num; 
-
-	FILE *ptr_opt = fopen("disk","w");
-	printf("size inode:%ld spb:%ld\n", sizeof(inode_t), sizeof(spb_t));
-
-	char* buffer = (char*)malloc(spb_size*total_b_num);
-	memset(buffer, 0, spb_size*total_b_num);
-	spb_t* spb = (spb_t*)buffer;
-	inode_t* root = (inode_t*)(buffer+spb_size);
-
-	set_spb(spb, i_offset, d_offset, block_size);
-	set_root(root);
-
-	prt_spb(*spb);
-	prt_root(*root);
-
-
-	// fill the rest with empty inodes
-	int inode_count = get_inode_count(*spb);
-	printf("%d except root\n", inode_count-1);
-	for (int i=1; i<inode_count; i++){
-		inode_t* empty_inode = (inode_t*)(buffer+spb_size*(1+i_offset)+i*sizeof(inode_t));
-		set_empty_inode(empty_inode);
-		if(i == inode_count-1) 
-			empty_inode->next_free_inode = -1;
-		else 
-			empty_inode->next_free_inode = i+1;
-		prt_inode(*empty_inode);
-	}
-
-	// connect all the free blocks
-	for (int i = 1; i < data_b_num; ++i){
-		int* data_b = (int*)(buffer+spb_size+d_offset*spb_size+i*sizeof(spb_size));
-		if(i == data_b_num-1)
-			*data_b = -1;
-		else *data_b = i+1;
-	}
-	
-	fwrite(buffer, spb_size*total_b_num, 1, ptr_opt);
-	fclose(ptr_opt);
-	free(buffer);
-
-	return 1;
-}
-
-int test_init(){
+int test_init_mount(){
 	// read the size of file
 	// init write buffer
 	FILE *ptr_ipt = fopen("disk","r");
-	fseek(ptr_ipt, 0L, SEEK_END);
-	int sz = ftell(ptr_ipt);
-	char *infile = (char*)malloc(sz+1);
-	memset(infile, 0, sz);
-	infile[sz] = '\0';
-	rewind(ptr_ipt);
+	char *infile_buff = NULL;
+	int sz = get_file_size(ptr_ipt, &infile_buff);
 
-
-	printf("\nopen disk!\n");
-	read_f_with_fread(infile, sizeof(char), sz, ptr_ipt);
+	// read file into char buffer
+	//printf("\nopen disk!\n");
+	read_f_into_buffer(infile_buff, sizeof(char), sz, ptr_ipt);
 	fclose(ptr_ipt);
 
-	spb_t *out_spb = (spb_t*)infile;
-	int blocksize = out_spb->size;
-
-	char* inodes_region = (char*)malloc((out_spb->data_offset - out_spb->inode_offset)*blocksize);
-	memcpy(inodes_region, infile + 512 + out_spb->inode_offset, (out_spb->data_offset - out_spb->inode_offset)*blocksize);
-
-	inode_t *inodes = (inode_t*)inodes_region;
+	// read spb and store into local varibles
+	spb_t *out_spb = (spb_t*)infile_buff;
+	inode_t *inodes = (inode_t*)(infile_buff + 512 + out_spb->inode_offset);
 	inode_t *out_root = inodes;
-
-
-	
-	prt_spb(*out_spb);
-	prt_root(*out_root);
+	int blocksize = out_spb->size;
+	int db_num = (sz - blocksize*(1+out_spb->data_offset))/ blocksize;
 	int inode_count = get_inode_count(*out_spb);
-	for (int i = 0; i < inode_count-1; ++i){
-		prt_inode(inodes[i+1]);
-	}
+	
+	// print local varibles
+	//prt_spb(*out_spb);
+	//prt_root(*out_root);
+	//for (int i = 0; i < inode_count-1; ++i)
+	//	prt_inode(inodes[i+1]);
+	//printf("sz:%d db_num %d\n", sz,db_num);
 
-	set_fs(*out_spb, SUPERUSER, inodes, inode_count, "DISK");
 
-	free(infile);
-	free(inodes_region);
+	// load fs gloabls from the local varibles
+	load_fs(*out_spb, SUPERUSER, inodes, inode_count, "disk", db_num);
+
+	// add root to the open file table
+	f_entry_t root_file_entry;
+	root_file_entry.mode = -3;
+	root_file_entry.offset = 0;
+	root_file_entry.ind = 0;
+
+	fs.table.open_files = (f_entry_t*)malloc(inode_count*sizeof(f_entry_t));
+	//for (int i = 0; i < inode_count; ++i)
+	//	fs.table.open_files[i].ind = EMPTY_ENTRY;
+	fs.table.open_files[0] = root_file_entry;
+	fs.table.length = 1;
+
+	free(infile_buff);
 
 
-	return 1;
+	return SUCCESS;
 
 }
 
@@ -136,106 +70,70 @@ int test_init(){
      if no fs.freeiHead return error, else set new fs.freeiHead
  return the index of new file in fs.table when success
  */
-int f_open(inode_t current_d, const char *filename, int flags);
+int f_open(int dir_index, const char *filename, int flags){
+	assert (dir_index > -1);
+	inode_t current_d = fs.inodes[dir_index];
+	assert (current_d.nlink > 0);
+	assert (current_d.isdir == 1);
+	if(flags == R){ // add persmission check!!
+		//buffer 
+	}
+	return SUCCESS;
+}
+
+// if fd < fs.table.length get the file entry fs.table[fd], get the inode i = fs.table[fd].ind
+//    if nlink!=0, set the file’s offset to the end if O_APPEND
+//    store count number of bytes from data to i, if current blocks not enough set indirect ptr
+//     return the number of bytes written, if error return -1 and set errno
+//    if nlink==0 or if fd >= fs.table.length or permission not match return -1 and set errno
+int f_write(int fd, void *buf, int len, int count){
+	f_entry_t the_file_entry = fs.table.open_files[fd];
+	inode_t* current_file = &(fs.inodes[the_file_entry.ind]);
+	write_file(current_file, buf, len, 0);
+	return 0;
+}
+
 
 
 
 
 int main(){
 	// one spb, one blk (4) inodes, 2 data blocks (one for root)
-	test_create_disk();
-	test_init();
-	prt_fs();
+	format_disk();
+	test_init_mount();
+	//prt_fs();
+	//prt_table();
+	//printf("d entry size:%d, num:%d\n", sizeof(dir_entry_t), fs.spb.size/sizeof(dir_entry_t));
+
+	f_entry_t first_file_entry;
+	first_file_entry.mode = -3;
+	first_file_entry.offset = 0;
+	first_file_entry.ind = 1;
+	fs.table.open_files[1] = first_file_entry;
+	fs.table.length = 2;
+	
+	fs.inodes[1].nlink = 1;
+	fs.inodes[1].parent = 0;
+	fs.inodes[1].size = 0;
+	fs.inodes[1].dblocks[0] = 1;
+	fs.inodes[1].dblocks[1] = 2;
+	fs.inodes[1].dblocks[2] = 3;
+
+
+
+	FILE *f = fopen("test_data_file/data1.txt","r");
+	char *infile_buff = NULL;
+	int sz = get_file_size(f, &infile_buff);
+	read_f_into_buffer(infile_buff, sizeof(char), sz, f);
+	fclose(f);
+	//printf("%s\n", infile_buff);
+	f_write(1, infile_buff, sz, 1);
+	free(infile_buff);
+	prt_file_data(1);
 
 	free(fs.inodes);
+	free(fs.table.open_files);
 } 
 
 //// HELPER FUNCS ///// 
 
-void set_spb(spb_t* spb, int i_offset, int d_offset, int block_size){
-	spb->type = 0;
-	spb->size = block_size;
-	spb->inode_offset = i_offset;
-	spb->data_offset = d_offset;
-	spb->free_inode = 1;
-	spb->free_block = 1;
-}
-
-void set_root(inode_t* root){
-	root->parent = -1;
-	root->children_num = 0;
-	root->nlink = 1;
-	root->dblocks[0] = 0;
-	root->size = 512;
-}
-
-void set_empty_inode(inode_t* empty_inode){
-	empty_inode->parent = -1;
-	empty_inode->children_num = 0;
-	empty_inode->nlink = 0;
-	empty_inode->dblocks[0] = -1;
-	empty_inode->size = -1;
-}
-
-void prt_spb(spb_t spb){
-	printf("spb:    \ttype:%d size:%d ioff:%d dataoff:%d freei:%d freeb:%d\n",
-			spb.type, spb.size, spb.inode_offset, spb.data_offset,
-			spb.free_inode, spb.free_block);
-}
-
-void prt_root(inode_t root){
-	printf("root:   \tparent:%d children_num:%d nlink:%d dblocks[0]:%d size:%d\n",
-			root.parent, root.children_num, root.nlink, root.dblocks[0], root.size);
-}
-
-void prt_inode(inode_t i){
-	printf("inode:   \tparent:%d children_num:%d nlink:%d dblocks[0]:%d size:%d next free:%d\n",
-			i.parent, i.children_num, i.nlink, i.dblocks[0], i.size, i.next_free_inode);
-}
-
-size_t read_f_with_fread(char* infile, int fsize, int count, FILE* ptr_ipt){
-	size_t newLen = fread(infile, fsize, count, ptr_ipt);
-	if(!newLen) perror("Error reading\n");
-	return newLen;
-}
-
-int get_inode_count(spb_t spb){
-	int region_size = (spb.data_offset - spb.inode_offset)*spb.size;
-	return region_size / sizeof(inode_t);
-}
-
-void set_fs(spb_t spb, int user_in, inode_t* inodes_arr, int inodes_arr_len, char name[255]){
-	fs.spb = spb;
-	fs.users[SUPERUSER] = 0;
-	fs.users[USER] = 1;
-	fs.user = user_in;
-
-
-	fs.inodes = (inode_t*)malloc(sizeof(inode_t)*inodes_arr_len);
-	for (int i = 0; i < inodes_arr_len; ++i)
-		fs.inodes[i] = inodes_arr[i];
-
-	fs.root = &fs.inodes[0];
-	fs.shell_d = fs.root;
-	fs.freeiHead = &inodes_arr[spb.free_inode];
-	fs.free_block_head = spb.free_block;
-
-	int c = 0;
-  	while ((name[c] != '\0') && (c < 255 -1)) {
-    	fs.diskname[c] = name[c];
-    	c++;
-  	}
-	fs.diskname[c] = '\0';
-	fs.fs_num = 0;
-}
-
-void prt_fs(){
-	printf("\nfile system attributes:\n");
-	prt_spb(fs.spb);
-	prt_root(*(fs.root));
-	int inode_count = get_inode_count(fs.spb);
-	for (int i = 0; i < inode_count-1; ++i){
-		prt_inode(fs.inodes[i+1]);
-	}
-
-}
