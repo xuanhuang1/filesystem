@@ -12,14 +12,15 @@ size_t read_f_into_buffer(char* infile, int fsize, int count, FILE* ptr_ipt){
 }
 
 // get data block by index
-char* get_data_block(int data_index){
+char* get_data_block(int data_index, int offset, int length){
+	assert (offset+length<fs.spb.size+1);
 	FILE *ptr_ipt = fopen("disk","r");
 	assert (ptr_ipt != NULL);
-	char* buffer = (char*)malloc(sizeof(fs.spb.size));
-	int data_offset_on_disk = fs.spb.size+fs.spb.size*(fs.spb.data_offset+data_index);
-	printf("\n\nread data_off_on_disk %d\n\n", data_offset_on_disk);
-	fseek(ptr_ipt, data_offset_on_disk, SEEK_SET);
-	read_f_into_buffer(buffer, sizeof(char), sizeof(fs.spb.size), ptr_ipt);
+	char* buffer = (char*)malloc(length);
+	int data_offset_on_disk = fs.spb.size+fs.spb.size*(fs.spb.data_offset+data_index)+offset;
+	printf("\n***read data_off_on_disk %d+%d len:%d***\n", data_offset_on_disk, offset, length);
+	fseek(ptr_ipt, data_offset_on_disk+offset, SEEK_SET);
+	read_f_into_buffer(buffer, length, 1, ptr_ipt);
 	fclose(ptr_ipt);
 	return buffer;
 }
@@ -32,14 +33,17 @@ size_t write_f_from_buffer(char* infile, int fsize, int count, FILE* ptr_ipt){
 	return newLen;
 }
 // write data block pointed by index
-char* write_data_block(int data_index, char* buffer){
-	FILE *ptr_ipt = fopen(fs.diskname,"w");
+char* write_data_block(int data_index, char* buffer, int offset, int length){
+	assert (offset+length < fs.spb.size+1);
+	FILE *ptr_ipt = fopen(fs.diskname,"r+");
+
 	assert (ptr_ipt != NULL);
-	int data_offset_on_disk = fs.spb.size+fs.spb.size*(fs.spb.data_offset+data_index);
-	printf("write data_off_on_disk %d. with index: %d\n", data_offset_on_disk, data_index);
-	fseek(ptr_ipt, data_offset_on_disk, SEEK_SET);
-	write_f_from_buffer(buffer, sizeof(char), sizeof(fs.spb.size), ptr_ipt);
+	int data_offset_on_disk = fs.spb.size+fs.spb.size*(fs.spb.data_offset+data_index)+offset;
+	printf("write data_off_on_disk %d. with index: %d\n", data_offset_on_disk+offset, data_index);
+	fseek(ptr_ipt, data_offset_on_disk+offset, SEEK_SET);
+	write_f_from_buffer(buffer, length, 1,  ptr_ipt);
 	fclose(ptr_ipt);
+
 	return buffer;
 }
 

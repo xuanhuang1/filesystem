@@ -30,8 +30,8 @@ void load_fs(spb_t spb, int user_in, inode_t* inodes_arr, int inodes_arr_len, ch
 // fread and fwrite related
 size_t read_f_into_buffer(char* infile, int fsize, int count, FILE* ptr_ipt);
 size_t write_f_from_buffer(char* infile, int fsize, int count, FILE* ptr_ipt);
-char* get_data_block(int data_index);
-char* write_data_block(int data_index, char* buffer);
+char* get_data_block(int data_index, int offset, int length);
+char* write_data_block(int data_index, char* buffer, int offset, int length);
 
 
 

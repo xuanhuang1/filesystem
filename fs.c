@@ -121,10 +121,11 @@ int main(){
 
 
 
-	FILE *f = fopen("test_data_file/data1.txt","r");
+	FILE *f = fopen("test_data_file/data1.txt","r+");
 	char *infile_buff = NULL;
 	int sz = get_file_size(f, &infile_buff);
 	read_f_into_buffer(infile_buff, sizeof(char), sz, f);
+	printf("origianl sz %d\n", sz);
 	fclose(f);
 	//printf("%s\n", infile_buff);
 	f_write(1, infile_buff, sz, 1);

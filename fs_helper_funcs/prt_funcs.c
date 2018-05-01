@@ -30,7 +30,7 @@ void prt_inode(inode_t i){
 void prt_data_region(){
 	printf("\nprint data region:\n");
 	for (int i = 0; i < fs.data_block_num; ++i){
-		char* data = get_data_block(i);
+		char* data = get_data_block(i, 0, fs.spb.size);
 		int data_next = *((int*)data);
 		printf("data block:%d next free:%d\n", i, data_next);
 		free(data);
@@ -60,30 +60,36 @@ void prt_fs(){
 }
 
 
-int printDB(inode_t inode, int block_count){
+int printDB(inode_t inode, int byte_count){
 	//printf("print db\n");
   	
 	for (int j = 0; j < N_DBLOCKS; ++j){
-		char* buffer = get_data_block(inode.dblocks[j]);
-		for (int i = 0; i < fs.spb.size; ++i)
+		//FILE *ptr_ipt = fopen("dataout.txt","w");
+		int buffer_len = fs.spb.size;
+		if(byte_count < fs.spb.size) buffer_len = byte_count;
+		char* buffer = get_data_block(inode.dblocks[j], 0, buffer_len);
+		for (int i = 0; i < fs.spb.size; ++i){
 			printf("%c", buffer[i]);
-		
-		free(buffer);
-		block_count--;
-		if(!block_count){
-			return 0;
+			byte_count--;
+			if(!byte_count){
+				free(buffer);
+				return 0;
+			}
 		}
+		//fwrite(buffer, fs.spb.size, 1, ptr_ipt);
+		//fclose(ptr_ipt);
+		free(buffer);
+		
 	}
-	return block_count;
+	return byte_count;
 }
 
 
 void prt_file_data(int inode_indx){
 	printf("\n print file date inodes[%d]:\n", inode_indx);
 	inode_t the_inode = fs.inodes[inode_indx];
-	int block_count = the_inode.size/fs.spb.size;
-	if(fs.spb.size*block_count < the_inode.size) block_count++;
+	int byte_count = the_inode.size;
 	printf("the inode size:%d\n", the_inode.size);
 	if(the_inode.size)
-		block_count = printDB(the_inode, block_count);
+		byte_count = printDB(the_inode, byte_count);
 }

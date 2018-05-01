@@ -9,7 +9,7 @@
 extern fs_attr_t fs;
 
 inode_t* search_file_in_one_block(int index, char* filename, int* count){
-	char* buffer = get_data_block(index);
+	char* buffer = get_data_block(index, 0, fs.spb.size);
 	dir_entry_t *entris = (dir_entry_t*)buffer;
 	for (int j = 0; j < fs.spb.size/sizeof(dir_entry_t); ++j){
 		if(strcmp(entris[j].name, filename)==0){
@@ -52,19 +52,21 @@ int write_dblock(inode_t* inode, int write_size, char* in_buff){
 	for (int i = 0; i < N_DBLOCKS; ++i){
 		int size_write_to = fs.spb.size;
 		if(bytes_left < size_write_to) size_write_to = bytes_left;
-
-		char* buffer = (char*)malloc(fs.spb.size+1);
-		buffer[fs.spb.size] = '\0';
-
+		char* buffer = (char*)malloc(size_write_to+1);
 		memset(buffer, 0, size_write_to);
+		buffer[size_write_to] = '\0';
+
+		//printf("the buffer after set:%s\n", buffer);
+		
 		memcpy(buffer, in_buff+i*fs.spb.size, size_write_to);
 		printf("copying %d to %d\n", i*fs.spb.size, i*fs.spb.size+size_write_to-1);
-		//printf("%s\n", buffer);
-		write_data_block(inode->dblocks[i], buffer);
+		//printf("the buffer:%s\n", buffer);
+
+		write_data_block(inode->dblocks[i], buffer, 0, size_write_to);
 
 		bytes_left -= size_write_to;
 		free(buffer);
-		printf("bytes_left: %d\n", bytes_left);
+		printf("------bytes_left: %d------\n", bytes_left);
 		if(!bytes_left) return write_size;
 	}
 	return write_size - bytes_left;
@@ -72,7 +74,7 @@ int write_dblock(inode_t* inode, int write_size, char* in_buff){
 
 int write_file(inode_t* inode, char* buff, int len, int flag){
 	printf("original file: len buff:%d\n", len);
-	printf("***%s***\n", buff);
+	//printf("***%s***\n", buff);
 	int size_to_write = len;
 	write_dblock(inode, size_to_write, buff);
 	inode->size = len;
