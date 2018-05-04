@@ -17,7 +17,7 @@ int test_init_mount(){
 
 	// read file into char buffer
 	//printf("\nopen disk!\n");
-	read_f_into_buffer(infile_buff, sizeof(char), sz, ptr_ipt);
+	read_with_fread(infile_buff, sizeof(char), sz, ptr_ipt);
 	fclose(ptr_ipt);
 
 	// read spb and store into local varibles
@@ -81,56 +81,139 @@ int f_open(int dir_index, const char *filename, int flags){
 	return SUCCESS;
 }
 
+
 // if fd < fs.table.length get the file entry fs.table[fd], get the inode i = fs.table[fd].ind
 //    if nlink!=0, set the file’s offset to the end if O_APPEND
 //    store count number of bytes from data to i, if current blocks not enough set indirect ptr
 //     return the number of bytes written, if error return -1 and set errno
 //    if nlink==0 or if fd >= fs.table.length or permission not match return -1 and set errno
-int f_write(int fd, void *buf, int len, int count){
-	f_entry_t the_file_entry = fs.table.open_files[fd];
-	inode_t* current_file = &(fs.inodes[the_file_entry.ind]);
-	write_file(current_file, buf, len, 0);
+int f_write(int fd, void *buf, int len){
+	f_entry_t *the_file_entry = &fs.table.open_files[fd];
+	write_file_by_inode(the_file_entry, buf, len);
+	return 0;
+}
+
+int f_read(int fd, void *buf, int len){
+	f_entry_t *the_file_entry = &fs.table.open_files[fd];
+	read_file_by_inode(the_file_entry, buf, len);
 	return 0;
 }
 
 
+int f_seek(int fd, int offset, int whence){
+	if(whence == SEEK_BEGIN){
+		if(fs.inodes[fs.table.open_files[fd].ind].size < offset){
+			printf("SETTING SEEK BEYOND SIZE: BEGIN! %d\n", offset);
+			return FAIL;
+		}
+		fs.table.open_files[fd].offset = offset;
+		return SUCCESS;
+	}
+	if(whence == SEEK_CURR){
+		if(fs.inodes[fs.table.open_files[fd].ind].size < offset+fs.table.open_files[fd].offset){
+			printf("SETTING SEEK BEYOND SIZE: CURR! %d\n", offset);
+			return FAIL;
+		}
+		fs.table.open_files[fd].offset += offset;
+		return SUCCESS;
+	}
+	if(whence == SEEK_ENDFILE){
+		fs.table.open_files[fd].offset = fs.inodes[fs.table.open_files[fd].ind].size;
+		return SUCCESS;
+	}else{
+		printf("Wrong flag in seek\n");
+		return FAIL;
+	}
+}
 
+void f_rewind(int fd){
+	fs.table.open_files[fd].offset = 0;
+}
+
+
+void create_file_at_inode(int file_i_index, char* filename){
+	f_entry_t the_file_entry;
+	the_file_entry.mode = OPEN_APPEND;
+	the_file_entry.offset = 0;
+	the_file_entry.ind = file_i_index;
+	fs.table.open_files[fs.table.length] = the_file_entry;
+	
+	fs.inodes[file_i_index].nlink = 1;
+	fs.inodes[file_i_index].parent = 0;
+	fs.inodes[file_i_index].size = 0;
+
+
+	fs.table.length++;
+
+
+	FILE *f = fopen(filename,"r+");
+	char *infile_buff = NULL;
+	int sz = get_file_size(f, &infile_buff);
+	read_with_fread(infile_buff, sizeof(char), sz, f);
+	printf("file:%s origianl sz %d\n", filename, sz);
+	fclose(f);
+	f_write(fs.table.length-1, infile_buff, sz);
+	free(infile_buff);
+
+
+	prt_file_data(file_i_index);
+	prt_data_region();
+}
+
+void append_file_at_inode(int file_i_index, char* filename){
+	FILE *f = fopen(filename,"r+");
+	char *infile_buff = NULL;
+	int sz = get_file_size(f, &infile_buff);
+	read_with_fread(infile_buff, sizeof(char), sz, f);
+	printf("file:%s origianl sz %d\n", filename, sz);
+	fclose(f);
+
+	f_write(fs.table.length-1, infile_buff, sz);
+	free(infile_buff);
+
+
+	prt_file_data(file_i_index);
+}
 
 
 int main(){
 	// one spb, one blk (4) inodes, 2 data blocks (one for root)
 	format_disk();
 	test_init_mount();
-	//prt_fs();
-	//prt_table();
+	prt_fs();
+	prt_table();
+
+	printf("\n\n\n\n END OF INIT \n\n\n\n");
 	//printf("d entry size:%d, num:%d\n", sizeof(dir_entry_t), fs.spb.size/sizeof(dir_entry_t));
 
-	f_entry_t first_file_entry;
-	first_file_entry.mode = -3;
-	first_file_entry.offset = 0;
-	first_file_entry.ind = 1;
-	fs.table.open_files[1] = first_file_entry;
-	fs.table.length = 2;
-	
-	fs.inodes[1].nlink = 1;
-	fs.inodes[1].parent = 0;
-	fs.inodes[1].size = 0;
-	fs.inodes[1].dblocks[0] = 1;
-	fs.inodes[1].dblocks[1] = 2;
-	fs.inodes[1].dblocks[2] = 3;
+	int next_inode = extract_next_free_inode();
+	create_file_at_inode(next_inode, "test_data_file/data1.txt");
+	printf("\n\n\n\n END OF CREATE \n\n\n\n");
+
+	append_file_at_inode(next_inode, "test_data_file/append2.txt");
+
+	printf("\n\n\n\n END OF APPEND \n\n\n\n");
 
 
+	char* readed_data = (char*)malloc(512);
+	char* readed_data2 = (char*)malloc(5);
 
-	FILE *f = fopen("test_data_file/data1.txt","r+");
-	char *infile_buff = NULL;
-	int sz = get_file_size(f, &infile_buff);
-	read_f_into_buffer(infile_buff, sizeof(char), sz, f);
-	printf("origianl sz %d\n", sz);
-	fclose(f);
-	//printf("%s\n", infile_buff);
-	f_write(1, infile_buff, sz, 1);
-	free(infile_buff);
-	prt_file_data(1);
+	readed_data[511] = '\0';
+	readed_data2[4] = '\0';
+
+	f_rewind(next_inode);
+	f_read(next_inode, readed_data, 511);
+	f_read(next_inode, readed_data2, 4);
+
+	printf("\n\n\n\n END OF READ \n\n\n\n");
+
+	printf("%s + %s\n", readed_data, readed_data2);
+	free(readed_data);
+	free(readed_data2);
+
+
+	prt_table();
+
 
 	free(fs.inodes);
 	free(fs.table.open_files);

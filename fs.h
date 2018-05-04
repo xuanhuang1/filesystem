@@ -11,6 +11,8 @@ enum _utype{SUPERUSER, USER, MAXUSER};
 enum {SUCCESS, FAIL};
 enum {TRUE = 1, FALSE = 0};
 enum {R, W, X};
+enum {OPEN_R, OPEN_W, OPEN_RW, OPEN_APPEND};
+enum {SEEK_BEGIN=-18, SEEK_CURR=-8,SEEK_ENDFILE=10};
 
 
 
@@ -50,7 +52,7 @@ typedef struct{
 //file entry
 typedef struct{
     int mode;      // read write exe
-    void* offset;     // current ptr offset
+    int offset;    // current ptr offset
     int ind;// ptr to the inode
 }f_entry_t; 
 
@@ -96,7 +98,8 @@ struct fs_attr_t{
 	int u_gid[MAXUSER];    	// stores the group ID, the index is the user ID
 	int user;         		// current user ID
 	inode_t *shell_d;
-	inode_t *root, *freeiHead;
+	inode_t *root;
+	int freeiHead;
 	f_entry_table_t table;  // table of opened files, initialized to have only the root and -1s
 	char* dataBeginPos;     // ptr to the start of data region
 	inode_t* inodes;        // array of inodes
