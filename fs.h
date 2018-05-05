@@ -4,14 +4,14 @@
 #define N_DBLOCKS 10
 #define N_IBLOCKS 4
 #define EMPTY_ENTRY  -1
+#define NAMELEN 12
 
 #include <sys/stat.h>
 
 enum _utype{SUPERUSER, USER, MAXUSER};   
-enum {SUCCESS, FAIL};
+enum {SUCCESS = 0, FAIL = -1};
 enum {TRUE = 1, FALSE = 0};
-enum {R, W, X};
-enum {OPEN_R, OPEN_W, OPEN_RW, OPEN_APPEND};
+enum {OPEN_R = 118, OPEN_W=127, OPEN_RW=136, OPEN_APPEND=145};
 enum {SEEK_BEGIN=-18, SEEK_CURR=-8,SEEK_ENDFILE=10};
 
 
@@ -32,7 +32,6 @@ typedef struct{
 	int parent;
 	mode_t permission; 		// r w x, user group other (3x3 table in total)
 	int isdir;    			// file or directory
-	int nextfile;    		// directory ptr for f_readdir, the index of the next file
 	int children_num; 		// the number of children for the directory
 	int next_free_inode; 	/* index of next free inode */
 	int protect; 			/* protection field */
@@ -74,7 +73,7 @@ decrement children_num for the directory inode
 */
 typedef struct{
 	int ind;
-	char name[28];
+	char name[NAMELEN];
 }dir_entry_t;
 
 //stat

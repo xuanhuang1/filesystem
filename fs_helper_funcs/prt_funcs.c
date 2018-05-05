@@ -17,7 +17,7 @@ void prt_spb(spb_t spb){
 }
 
 void prt_root(inode_t root){
-	printf("root: \tdir:%d parent:%d children_num:%d nlink:%d dblocks[0]:%d size:%d\n",
+	printf("(0) root: \tdir:%d parent:%d children_num:%d nlink:%d dblocks[0]:%d size:%d\n",
 			root.isdir, root.parent, root.children_num, root.nlink, root.dblocks[0], root.size);
 }
 
@@ -42,11 +42,11 @@ void prt_data_region(){
 }
 
 void prt_table(){
-	printf("\n=======================\n");
+	printf("\n============================\n");
 
-	printf("print file entry table:\n");
+	printf("print file entry table: len%d\n", fs.table.length);
 
-	printf("=======================\n");
+	printf("============================\n");
 	for (int i = 0; i < fs.table.length; ++i){
 		assert (fs.table.open_files[i].ind > -1);
 		printf("fs.table.open_files[%d]: inode %d\n\t", i, fs.table.open_files[i].ind);
@@ -56,15 +56,18 @@ void prt_table(){
 }
 
 void prt_fs(){
-	printf("\n=====================\n");
+	printf("\n=======================\n");
 
 	printf("file system attributes:\n");
 	printf("=======================\n");
-
+	printf("size of inode:%ld\n", sizeof(inode_t));
 	prt_spb(fs.spb);
+	printf("size_block: %d, free_i_head: %d, free_b_head: %d\n", fs.spb.size, fs.freeiHead, fs.free_block_head);
+	printf("\n");
 	prt_root(*(fs.root));
 	int inode_count = get_inode_count(fs.spb);
 	for (int i = 0; i < inode_count-1; ++i){
+		printf("(%d) ",i+1 );
 		prt_inode(fs.inodes[i+1]);
 	}
 	prt_data_region();
@@ -102,7 +105,7 @@ void prt_file_data(int inode_indx){
 
 	inode_t the_inode = fs.inodes[inode_indx];
 	int byte_count = the_inode.size;
-	printf("the inode size:%d\n", the_inode.size);
+	printf("the file size:%d\n", the_inode.size);
 	if(the_inode.size)
 		byte_count = printDB(the_inode, byte_count);
 

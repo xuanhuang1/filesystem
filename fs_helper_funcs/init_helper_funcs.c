@@ -18,13 +18,13 @@ int get_file_size(FILE *ptr_ipt, char** infile){
 	return sz;
 }
 
-void set_spb(spb_t* spb, int i_offset, int d_offset, int block_size){
+void set_spb(spb_t* spb, int i_offset, int d_offset, int block_size, int freei, int freeb){
 	spb->type = 0;
 	spb->size = block_size;
 	spb->inode_offset = i_offset;
 	spb->data_offset = d_offset;
-	spb->free_inode = 1;
-	spb->free_block = 1;
+	spb->free_inode = freei;
+	spb->free_block = freeb;
 }
 
 void set_root(inode_t* root){
@@ -32,8 +32,8 @@ void set_root(inode_t* root){
 	root->isdir = 1;
 	root->children_num = 0;
 	root->nlink = 1;
-	root->dblocks[0] = 0;
-	root->size = 512;
+	root->dblocks[0] = -1;
+	root->size = 0;
 }
 
 void set_empty_inode(inode_t* empty_inode){

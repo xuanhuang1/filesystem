@@ -27,15 +27,16 @@ int format_disk(){
 	spb_t* spb = (spb_t*)buffer;
 	inode_t* root = (inode_t*)(buffer+spb_size);
 
-	set_spb(spb, i_offset, d_offset, block_size);
+
+	set_spb(spb, i_offset, d_offset, block_size, 1, 0);
 	set_root(root);
+	int inode_count = get_inode_count(*spb);
 
-	//prt_spb(*spb);
-	//prt_root(*root);
-
+	prt_spb(*spb);
+	prt_root(*root);
+	//printf("inode count:%d\n", inode_count);
 
 	// fill the rest with empty inodes
-	int inode_count = get_inode_count(*spb);
 	//printf("%d except root\n", inode_count-1);
 	for (int i=1; i<inode_count; i++){
 		inode_t* empty_inode = (inode_t*)(buffer+spb_size*(1+i_offset)+i*sizeof(inode_t));
@@ -48,7 +49,7 @@ int format_disk(){
 	}
 
 	// connect all the free blocks
-	for (int i = 1; i < data_b_num; ++i){
+	for (int i = 0; i < data_b_num; ++i){
 		int* data_b = (int*)(buffer+spb_size+d_offset*spb_size+i*spb_size);
 		if(i == data_b_num-1)
 			*data_b = -1;
