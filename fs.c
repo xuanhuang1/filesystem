@@ -41,7 +41,7 @@ int test_init_mount(){
 
 	// add root to the open file table
 	f_entry_t root_file_entry;
-	root_file_entry.mode = OPEN_RW;
+	root_file_entry.mode = OPEN_R;
 	root_file_entry.offset = 0;
 	root_file_entry.ind = 0;
 
@@ -74,9 +74,9 @@ int f_open(int dir_index, char *filename, int flags){
 	assert (dir_index > -1);
 	inode_t current_d = fs.inodes[dir_index];
 	assert (current_d.nlink > 0);
-	assert (current_d.isdir == 1);
+	assert (current_d.isdir == 1); 
 
-	printf("\n\nOPENING %s under dir with inode:%d\n", filename, dir_index);
+	printf("\n\nOPENING \"%s\" under dir with inode:%d\n", filename, dir_index);
 
 	int inode_index = search_file_in_dir(dir_index, filename);
 	if(get_inode_in_open_table(inode_index) != FAIL){
@@ -90,14 +90,20 @@ int f_open(int dir_index, char *filename, int flags){
 
 	if(flags == OPEN_R){ // add persmission check!!
 		if(inode_index == -1){
-			printf("FAILURE!!! %s not found in dir[%d], CANNOT READ\n", filename, dir_index);
+			printf("FAILURE!!! \"%s\" not found in dir[%d], CANNOT READ\n", filename, dir_index);
 			return FAIL;
 		}else	the_file_entry.ind = inode_index;
 
 	}else if((flags == OPEN_W) || (flags == OPEN_RW) || (flags == OPEN_APPEND)){
 
 		if(inode_index == -1){
-			printf("%s not found in dir[%d], creating\n", filename, dir_index);
+			printf("\"%s\" not found in dir[%d], creating\n", filename, dir_index);
+			int fd_for_cur_dir = get_inode_in_open_table(dir_index);
+			if(fd_for_cur_dir == FAIL){
+				printf("parent directory %d not open!\n", dir_index);
+				return FAIL;
+			}
+
 			the_file_entry.ind = extract_next_free_inode();	
 			init_new_file_inode(the_file_entry.ind, dir_index, 1, 0, fs.user, fs.u_gid[fs.user], 1234);
 
@@ -111,12 +117,8 @@ int f_open(int dir_index, char *filename, int flags){
 			//printf("entry written buffer:%s\n", buffer);
 			// open dir and f_write append
 			// hard coded here
-			int fd_for_cur_dir = get_inode_in_open_table(dir_index);
-			printf("editting dir in table:%d\n", fd_for_cur_dir);
-			write_file_by_inode(&(fs.table.open_files[fd_for_cur_dir]), &dir_entry, sizeof(dir_entry_t));
+			add_one_entry_in_dir(fd_for_cur_dir, &dir_entry);
 
-
-			fs.inodes[dir_index].children_num ++;
 
 		}else 	the_file_entry.ind = inode_index;
 	}
@@ -249,7 +251,15 @@ int f_opendir(int dir_index, char* filename){
 int f_readdir(int fd);
 
 // same as f_close(fd)
-int f_closedir(int fd);
+int f_closedir(int fd){
+	if(fs.inodes[fs.table.open_files[fd].ind].isdir == FALSE){
+		printf("!!Trying to close a non-directory with f_closedir!!\n");
+		assert (fs.inodes[fs.table.open_files[fd].ind].isdir == TRUE);
+		return FAIL;
+	}
+	f_close(fd);
+	return SUCCESS;
+}
 
 // get a file descriptor fd = f_open(current_d, filename, RW); 
 // set the inode’s isdir to TRUE
@@ -258,9 +268,9 @@ int f_mkdir(int dir_index, char* filename){
 	int fd_dir = f_open(dir_index, filename, OPEN_RW);
 	if(fd_dir == FAIL) return FAIL;
 	inode_t *inode = &(fs.inodes[fs.table.open_files[fd_dir].ind]);
-	printf("Making dir for inode[%d], at fd:%d\n", fs.table.open_files[fd_dir].ind, fd_dir);
+	printf("Making dir for inode[%d], at temp fd:%d (close later)\n", fs.table.open_files[fd_dir].ind, fd_dir);
 	inode->isdir = TRUE;
-	f_close(fd_dir);
+	f_closedir(fd_dir);
 	return SUCCESS;
 }
 
@@ -287,6 +297,7 @@ fs_attr_t* f_mount(char *dir, int flags);
 // return NULL and set errno
 // else return fs
 fs_attr_t* f_unmount(char *dir, int flags);
+
 
 
 char* fill_buffer_from_FILE(char* filename, int* size){
@@ -321,7 +332,7 @@ void test_create_and_append(int fd){
 
 	printf("\n\n\n\n END OF APPEND \n\n\n\n");
 
-	//prt_file_data(fs.table.open_files[fd].ind);
+	prt_file_data(fs.table.open_files[fd].ind);
 
 
 }
@@ -348,11 +359,26 @@ void test_read_twice(int fd){
 
 }
 
-void test_fopen_invalid(){
+void test_fopen_lv2_dir_newfile(){
 	f_mkdir(0, "user");
 
 	int fd_dir = f_opendir(0, "user");
 	int fd = f_open(1, "file1", OPEN_RW);
+	prt_fs();
+
+}
+
+void test_fopen_2_dirs(){
+	f_mkdir(0, "user");
+
+	printf("\n\n\n\n END f_mkdir user \n\n\n\n");
+	f_mkdir(0, "spuser");
+	printf("\n\n\n\n END f_mkdir spuser \n\n\n\n");
+
+	f_opendir(0, "spuser");
+	printf("\n\n\n\n END f_opendir spuser \n\n\n\n");
+
+	prt_dir_data(0);
 	prt_fs();
 
 }
@@ -369,17 +395,16 @@ int main(){
 
 
 
-
 	//prt_data_region();
 
 
 	//int next_inode = extract_next_free_inode();
 	//create_file_at_inode(next_inode, "test_data_file/data1.txt");
-	int fd = f_open(0, "file1",OPEN_APPEND);
-	test_create_and_append(fd);
-	test_read_twice(fd);
-	
-	f_close(fd);
+	//int fd = f_open(0, "file1",OPEN_APPEND);
+	//test_create_and_append(fd);
+	//test_read_twice(fd);
+	test_fopen_2_dirs();
+	//f_close(fd);
 	
 	/*
 	int fd2 = f_open(0, "file1",OPEN_R);

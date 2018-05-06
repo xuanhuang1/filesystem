@@ -8,11 +8,11 @@
 
 extern fs_attr_t fs;
 
+
+
+
 int search_file_in_one_block(int index, char* filename, int* count){
 	dir_entry_t *entris = (dir_entry_t*)get_one_data_block(index, 0, fs.spb.size);
-	//dir_entry_t *entris = (dir_entry_t*)get_one_data_block(0, 0, sizeof(dir_entry_t));
-	//printf("dir_entry %s %d\n", entris[0].name, entris[0].ind);
-	
 	printf("search bolck %d\n", index);
 	for (int j = 0; j < fs.spb.size/sizeof(dir_entry_t); ++j){
 		printf("entris name:%s and filename:%s\n", entris[j].name, filename);
@@ -49,8 +49,69 @@ int search_file_in_dir(int dir_index, char* filename){
 	// check dblocks
 	for (int i = 0; i < N_DBLOCKS; ++i){
 		int temp = search_file_in_one_block(the_dir.dblocks[i], filename, &num_to_search);
-		if((temp != -1)||(!num_to_search))  return temp;
+		if((!num_to_search)|| (temp!=-1) )  return temp;
 	}
+
+	for (int i = 0; i < N_IBLOCKS; ++i){
+		int *table = (int*)get_one_data_block(the_dir.iblocks[i], 0, fs.spb.size);
+		int table_len = fs.spb.size/sizeof(int);
+		for (int j = 0; j < table_len; ++j){
+			printf("idirect %d\n", table[j]);
+			int temp = search_file_in_one_block(table[j], filename, &num_to_search);
+			if((!num_to_search)|| (temp!=-1)){ 
+				free(table);
+				return temp;
+			}
+		}
+		free(table);
+	}
+
+	if(num_to_search){
+		int *table2 = (int*)get_one_data_block(the_dir.i2block, 0, fs.spb.size);
+		int table_len = fs.spb.size/sizeof(int);
+		for (int i = 0; i < table_len; ++i){
+			int* table = (int*)get_one_data_block(table2[i], 0, fs.spb.size);
+			for (int j = 0; j < table_len; ++j){
+				printf("2direct %d\n", table[j]);
+				int temp = search_file_in_one_block(table[j], filename, &num_to_search);
+				if((!num_to_search)|| (temp!=-1)){ 
+					free(table);
+					free(table2);
+					return temp;
+				}
+			}
+			free(table);
+		}
+		free(table2);
+	}
+
+	if(num_to_search){
+		int *table3 = (int*)get_one_data_block(the_dir.i3block, 0, fs.spb.size);
+		int table_len = fs.spb.size/sizeof(int);
+		for (int k = 0; k < table_len; ++k){
+			int* table2 = (int*)get_one_data_block(table3[k], 0, fs.spb.size);
+			for (int i = 0; i < table_len; ++i){
+				int* table = (int*)get_one_data_block(table2[i], 0, fs.spb.size);
+				for (int j = 0; j < table_len; ++j){
+					printf("3direct %d\n", table[j]);
+					int temp = search_file_in_one_block(table[j], filename, &num_to_search);
+					if((!num_to_search)|| (temp!=-1)){ 
+						free(table);
+						free(table2);
+						free(table3);
+						return temp;
+					}
+				}
+				free(table);
+			}
+			free(table2);
+		}
+		free(table3);
+	}
+
+	assert (!num_to_search);
+
+
 
 	if(the_dir.size > fs.spb.size*N_DBLOCKS)
 		printf("LARGER THAN DB! SHOULDN'T HAPPEN NOW!\n");

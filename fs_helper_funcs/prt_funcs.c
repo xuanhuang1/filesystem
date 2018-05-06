@@ -110,3 +110,38 @@ void prt_file_data(int inode_indx){
 		byte_count = printDB(the_inode, byte_count);
 
 }
+
+int print_dir_DB(inode_t inode, int byte_count){
+	for (int j = 0; j < N_DBLOCKS; ++j){
+		int buffer_len = fs.spb.size;
+		if(byte_count < fs.spb.size) buffer_len = byte_count;
+
+		dir_entry_t *entry = (dir_entry_t*)get_one_data_block(inode.dblocks[j], 0, buffer_len);
+		int entry_count = fs.spb.size/sizeof(dir_entry_t);
+		if(inode.size < (j+1)*fs.spb.size) 
+			entry_count = (inode.size-j*fs.spb.size)/sizeof(dir_entry_t); 
+		for(int i=0; i<entry_count;i++)
+			printf("entry[%d]: ind:%d\t\"%s\"\n", i, entry[i].ind, entry[i].name);
+		byte_count -= buffer_len;
+		free(entry);
+		if(!byte_count) {
+			return byte_count;
+		}
+
+	}
+
+	return byte_count;
+}
+
+void prt_dir_data(int inode_indx){
+	printf("\n=====================\n");
+	printf("print directory file date inodes[%d]:\n", inode_indx);
+	printf("======================\n");
+
+	inode_t the_inode = fs.inodes[inode_indx];
+	int byte_count = the_inode.size;
+	printf("the file size:%d\n", the_inode.size);
+	if(the_inode.size)
+		byte_count = print_dir_DB(the_inode, byte_count);
+
+}

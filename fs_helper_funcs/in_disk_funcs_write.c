@@ -10,9 +10,9 @@ extern fs_attr_t fs;
 
 int write_dblock(inode_t* inode, int write_size, int start_db_i, int offset, void* in_buff){
 	int bytes_written = 0;
-	int j = 0;
 	for (int i = start_db_i; i < N_DBLOCKS; ++i){
 		int size_write_to = fs.spb.size;
+		int this_write = 0;
 		if(i == start_db_i){size_write_to -= offset;}
 
 		// get new block if exceed current size 
@@ -26,24 +26,32 @@ int write_dblock(inode_t* inode, int write_size, int start_db_i, int offset, voi
 
 		//printf("the buffer after set:%s\n", buffer);
 		
-		memcpy(buffer, in_buff+j, size_write_to);
-		printf("\tcopying %d to %d\n", j, j+size_write_to-1);
+		memcpy(buffer, in_buff+bytes_written, size_write_to);
+		printf("\tcopying %d to %d\n", bytes_written, bytes_written+size_write_to-1);
 		//printf("the buffer:%s\n", buffer);
 
 		if(i == start_db_i)
-		bytes_written += write_one_data_block(inode->dblocks[i], buffer, offset, size_write_to);
+			this_write = write_one_data_block(inode->dblocks[i], buffer, offset, size_write_to);
 		else
-		bytes_written += write_one_data_block(inode->dblocks[i], buffer, 0, size_write_to);
+			this_write = write_one_data_block(inode->dblocks[i], buffer, 0, size_write_to);
 
 		free(buffer);
+
+		bytes_written += this_write;
+
 		printf("------bytes_left: %d------\n", write_size - bytes_written);
 
 		if(write_size == bytes_written) return write_size;
-		j+= size_write_to;
 
 	}
 	return bytes_written;
 }
+
+int write_iblock(inode_t* inode, int write_size, int start_db_i, int offset, void* in_buff){
+
+	return 0;
+}
+
 
 int write_file_by_inode(f_entry_t* the_file_entry, void* buff, int len){
 	printf("\toriginal file: len buff:%d\n", len);
@@ -59,7 +67,7 @@ int write_file_by_inode(f_entry_t* the_file_entry, void* buff, int len){
 		the_file_entry->offset = 0;
 	}else if(the_file_entry->mode == OPEN_RW){
 		// let offset stays
-	}else{printf("WRONGF IN f_write\n");}
+	}else{printf("WRONGF IN f_write:%d\n", the_file_entry->mode);}
 
 	if(the_file_entry->offset < N_DBLOCKS*fs.spb.size){
 		int len_to_write = size_to_write;
@@ -76,7 +84,7 @@ int write_file_by_inode(f_entry_t* the_file_entry, void* buff, int len){
 		size_to_write -= bytes_written;
 	}
 	printf("\ttotal len left:%d\n", size_to_write);
-	//write_dblock(inode, size_to_write, 0, 0, buff);
+	
 	
 	inode->size =  the_file_entry->offset+bytes_written;
 	the_file_entry->offset += bytes_written;

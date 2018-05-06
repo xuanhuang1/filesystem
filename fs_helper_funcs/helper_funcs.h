@@ -12,7 +12,7 @@ void prt_inode(inode_t);
 void prt_data_region();
 void prt_fs();
 void prt_table();
-
+void prt_dir_data();
 void prt_file_data(int inode_indx);
 
 void set_spb(spb_t* spb, int i_offset, int d_offset, int block_size,int,int);
@@ -43,5 +43,9 @@ int read_file_by_inode(f_entry_t* the_file_entry, void* out_buff, int len);
 
 int get_inode_in_open_table(int);
 int fd_is_valid(int fd);
+int add_one_entry_in_dir(int fd_for_cur_dir, dir_entry_t *dir_entry);
 
+
+
+int f_opendir(int dir_index, char* filename);
 #endif

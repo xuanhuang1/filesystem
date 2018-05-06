@@ -55,6 +55,17 @@ void init_new_file_inode(int i, int parent, int nlink, int size, int uid, int gi
 	
 }
 
+int add_one_entry_in_dir(int fd_for_cur_dir, dir_entry_t *dir_entry){
+
+	printf("editting dir in table:%d\n", fd_for_cur_dir);
+	int old_dir_mode = fs.table.open_files[fd_for_cur_dir].mode;
+	fs.table.open_files[fd_for_cur_dir].mode = OPEN_APPEND;
+	write_file_by_inode(&(fs.table.open_files[fd_for_cur_dir]), dir_entry, sizeof(dir_entry_t));
+	fs.table.open_files[fd_for_cur_dir].mode = old_dir_mode;
+	
+	fs.inodes[fs.table.open_files[fd_for_cur_dir].ind].children_num ++;
+	return SUCCESS;
+}
 
 
 int if_file_permission(inode_t i, int flag){

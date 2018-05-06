@@ -13,7 +13,7 @@ void* get_one_data_block(int data_index, int offset, int length){
 	char* buffer = (char*)malloc(length+1);
 	buffer[length] = '\0';
 	int data_offset_on_disk = fs.spb.size+fs.spb.size*(fs.spb.data_offset+data_index);
-	printf("\n***read data_off_on_disk %d+%d len:%d***\n", data_offset_on_disk, offset, length);
+	printf("\n***get data_off_on_disk %d+%d len:%d***\n", data_offset_on_disk, offset, length);
 	fseek(ptr_ipt, data_offset_on_disk+offset, SEEK_SET);
 	read_with_fread(buffer, length, 1, ptr_ipt);
 	fclose(ptr_ipt);
