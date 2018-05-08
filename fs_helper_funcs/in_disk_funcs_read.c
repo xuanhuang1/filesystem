@@ -44,6 +44,7 @@ int read_file_by_inode(f_entry_t* the_file_entry, void* out_buff, int len){
 	int size_to_read = len;
 	int bytes_read = 0;
 	inode_t* inode = &fs.inodes[the_file_entry->ind];
+	if(!inode->size) return 0;
 	if(inode->size < len + the_file_entry->offset) 
 		size_to_read = inode->size - the_file_entry->offset;
 

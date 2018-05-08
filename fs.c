@@ -8,12 +8,12 @@
 
 fs_attr_t fs;
 
-int test_init_mount(){
+int test_init_mount(char* filename){
 	// read the size of file
 	// init write buffer
-	FILE *ptr_ipt = fopen("disk","r");
+	FILE *ptr_ipt = fopen(filename,"r");
 	char *infile_buff = NULL;
-	int sz = get_file_size(ptr_ipt, &infile_buff);
+	int sz = get_file_size_with_fseek(ptr_ipt, &infile_buff);
 
 	// read file into char buffer
 	//printf("\nopen disk!\n");
@@ -37,7 +37,7 @@ int test_init_mount(){
 
 
 	// load fs gloabls from the local varibles
-	load_fs(*out_spb, SUPERUSER, inodes, inode_count, "disk", db_num);
+	load_fs(*out_spb, SUPERUSER, inodes, inode_count, filename, db_num);
 
 	// add root to the open file table
 	f_entry_t root_file_entry;
@@ -80,9 +80,9 @@ int f_open(int dir_index, char *filename, int flags){
 
 	int inode_index = search_file_in_dir(dir_index, filename);
 	if(get_inode_in_open_table(inode_index) != FAIL){
-		printf("FAILURE!!!inode:%d already in open table[%d]\n", 
+		printf("DUPLICATE!!!inode:%d already in open table[%d]\n", 
 			inode_index, get_inode_in_open_table(inode_index));
-		return FAIL;
+		return inode_index;
 	}
 	f_entry_t the_file_entry;
 	the_file_entry.mode = flags;
@@ -127,7 +127,7 @@ int f_open(int dir_index, char *filename, int flags){
 	fs.table.length++;
 	printf("fill table[%d] with inode %d, flag:%d\n",
 		fs.table.length-1, the_file_entry.ind, the_file_entry.mode);
-	printf("\nEND ADDING OPEN TABLE\n\n");
+	printf("\nEnd adding open table\n\n");
 	return fs.table.length-1;
 
 	
@@ -143,7 +143,7 @@ int f_open(int dir_index, char *filename, int flags){
 int f_write(int fd, void *buf, int len){
 	if(fd_is_valid(fd) == FALSE)
 		return FAIL;
-
+	if(len == 0) return 0;
 	f_entry_t *the_file_entry = &fs.table.open_files[fd];
 	int bytes_written = write_file_by_inode(the_file_entry, buf, len);
 	return bytes_written;
@@ -152,6 +152,7 @@ int f_write(int fd, void *buf, int len){
 int f_read(int fd, void *buf, int len){
 	if(fd_is_valid(fd) == FALSE)
 		return FAIL;
+	if(len == 0) return 0;
 
 	f_entry_t *the_file_entry = &fs.table.open_files[fd];
 	int bytes_read = read_file_by_inode(the_file_entry, buf, len);
@@ -221,7 +222,18 @@ int f_close(int fd){
 }
 
 // read fs.table[fd]->ind ‘s  attribute to a struct stat
-int fstat(int fd, struct stat *buf);
+int f_stat(int fd, fs_stat_t *buf){
+	inode_t inode = fs.inodes[fs.table.open_files[fd].ind];
+	buf->mode = fs.table.open_files[fd].mode;
+	buf->nlink = inode.nlink;
+	buf->size = inode.size;
+	buf->uid = inode.uid;
+	buf->gid = inode.gid;
+	buf->ctime = inode.ctime;
+	buf->mtime = inode.mtime;
+	buf->atime = inode.atime;
+	return SUCCESS;
+}
 
 // find the inode by filename at given directory current_d
 // if it is a directory with children or nlink==0 return -1 and set errno
@@ -230,7 +242,21 @@ int fstat(int fd, struct stat *buf);
 // decrement children_num for the current_d’s inode
 // return 1 when success, return -1 when fails and set errno
 // will NOT close the file if it is in the open file table
-int f_remove(int dir_index, char filename);
+int f_remove(int dir_index, char* filename){
+	//printf("\n removing \"%s\" under dir with inode:%d\n", filename, dir_index);
+
+	// clear entry in parent dir
+	dir_entry_t last_dir_entry;
+	remove_last_entry_in_dir(dir_index, &last_dir_entry);
+	if(find_replace_dir_entry(dir_index, filename, &last_dir_entry) != FAIL){
+		fs.inodes[dir_index].children_num--;
+		fs.inodes[dir_index].size -= sizeof(dir_entry_t);
+	}else{
+		printf("the entry to remove: \"%s\" under inode[%d] does not exist\n", filename, dir_index);
+	}
+	//printf("last dir entry removed: %d %s\n\n", last_dir_entry.ind, last_dir_entry.name);
+	return SUCCESS;
+}
 
 
 // find the inode by filename at given directory current_d, if not found return -1 and set errno
@@ -248,7 +274,22 @@ int f_opendir(int dir_index, char* filename){
 // if not a directory or nlink==0 or permission doesn’t match flag return -1 and set errno
 // set new i.nextfile to the next children file of current_d
 // return the first inode whose isdir == TRUE after the old i.nextfile
-int f_readdir(int fd);
+int f_readdir(int fd, dir_entry_t *dir_read){
+	if(fs.inodes[fs.table.open_files[fd].ind].isdir == FALSE){
+		printf("!!Trying to read a non-directory with f_readdir!!\n");
+		assert (fs.inodes[fs.table.open_files[fd].ind].isdir == TRUE);
+		return FAIL;
+	}//printf("!!Trying to access a directory larger than cur size!!%d %d\n",
+	//		fs.table.open_files[fd].offset, fs.inodes[fs.table.open_files[fd].ind].size);
+		
+	if(!(fs.table.open_files[fd].offset < fs.inodes[fs.table.open_files[fd].ind].size)){
+		return FAIL;
+
+	}
+	if(f_read(fd, dir_read, sizeof(dir_entry_t)))
+		return SUCCESS;
+	return FAIL;
+}
 
 // same as f_close(fd)
 int f_closedir(int fd){
@@ -285,7 +326,43 @@ int f_mkdir(int dir_index, char* filename){
 //            call f_remove(fs.table[fd_child].ind, fs.table[fd_child].ind.name)
 //    when all the child files/directories are removed 
 //    call f_remove(current_d, current_d.name) to remove the empty directory itself
-int f_rmdir(dir_entry_t current_d, char filename);
+int f_rmdir(int dir_index, char* filename){
+	printf("Removing \"%s\" under:%d\n",filename, dir_index);
+
+	int fd = f_opendir(dir_index, filename);
+	int this_dir_inode_num = fs.table.open_files[fd].ind;
+	if(fs.inodes[this_dir_inode_num].children_num == 0){
+		assert(fs.inodes[this_dir_inode_num].size == 0);
+		printf("remove empty dir %d\n", this_dir_inode_num);
+		fs.inodes[this_dir_inode_num].nlink = 0;
+		free_this_inode(this_dir_inode_num);
+	}
+	printf("this dir: %d\n", fs.table.open_files[fd].ind);
+
+	f_rewind(fd);
+	for(int i=0; i<fs.inodes[this_dir_inode_num].children_num; i++){
+		dir_entry_t dir_entry;
+
+		f_readdir(fd, &dir_entry);
+		printf("\tthe next file to remove %d \"%s\" isdir?%d, under dir:%d\n", 
+			dir_entry.ind, dir_entry.name,
+			fs.inodes[dir_entry.ind].isdir, this_dir_inode_num);
+		if(fs.inodes[dir_entry.ind].isdir == FALSE){
+			printf("rm file %d\n", dir_entry.ind);
+
+			//trunc_file(&fs.inodes[dir_entry.ind]);
+			//fs.inodes[dir_entry.ind].nlink = 0;
+			delete_file_by_inode(dir_entry.ind);
+		}
+		else f_rmdir(this_dir_inode_num, dir_entry.name);
+	}
+	//trunc_file(&fs.inodes[this_dir_inode_num]);
+	//fs.inodes[this_dir_inode_num].nlink = 0;
+	delete_file_by_inode(this_dir_inode_num);
+
+
+	return SUCCESS;
+}
 
 // look for DISK and call fs_init()
 // if not found call format() then fs_init()
@@ -298,125 +375,4 @@ fs_attr_t* f_mount(char *dir, int flags);
 // else return fs
 fs_attr_t* f_unmount(char *dir, int flags);
 
-
-
-char* fill_buffer_from_FILE(char* filename, int* size){
-	FILE *f = fopen(filename,"r+");
-	char *infile_buff = NULL;
-	*size = get_file_size(f, &infile_buff);
-	read_with_fread(infile_buff, sizeof(char), *size, f);
-	printf("file:%s origianl sz %d\n", filename, *size);
-	fclose(f);
-	return infile_buff;
-}
-
-void test_create_and_append(int fd){
-	//dir_entry_t *dir = (dir_entry_t*)get_one_data_block(0, 0, sizeof(dir_entry_t));
-	//printf("dir_entry %s %d\n", dir->name, dir->ind);
-	int sz = 0;
-	char* infile_buff = fill_buffer_from_FILE("test_data_file/data1.txt", &sz);
-	int bytes_written = f_write(fd, infile_buff, sz);
-	free(infile_buff);
-
-	printf("\nEnd of f_write. bytes_written:%d\n", bytes_written);
-
-	printf("\n\n\n\n END OF CREATE \n\n\n\n");
-
-
-	int sz2 = 0;
-	char* infile_buff2 = fill_buffer_from_FILE("test_data_file/append2.txt", &sz2);
-	int bytes_written2 = f_write(fd, infile_buff2, sz2);
-	free(infile_buff2);
-
-	printf("\nEnd of f_write. bytes_written2:%d\n", bytes_written2);
-
-	printf("\n\n\n\n END OF APPEND \n\n\n\n");
-
-	prt_file_data(fs.table.open_files[fd].ind);
-
-
-}
-
-void test_read_twice(int fd){
-	char* readed_data = (char*)malloc(514);
-	char* readed_data2 = (char*)malloc(5);
-
-	readed_data[513] = '\0';
-	readed_data2[4] = '\0';
-
-	f_rewind(1);
-	int bytes_read = f_read(1, readed_data, 513);
-	printf("\nEnd of f_read. bytes_read:%d\n", bytes_read);
-
-	int bytes_read2 = f_read(1, readed_data2, 4);
-	printf("\nEnd of f_read. bytes_read2:%d\n", bytes_read2);
-
-	printf("\n\n\n\n END OF READ \n\n\n\n");
-	printf("read buffer:\n");
-	printf("%s + %s\n", readed_data, readed_data2);
-	free(readed_data);
-	free(readed_data2);
-
-}
-
-void test_fopen_lv2_dir_newfile(){
-	f_mkdir(0, "user");
-
-	int fd_dir = f_opendir(0, "user");
-	int fd = f_open(1, "file1", OPEN_RW);
-	prt_fs();
-
-}
-
-void test_fopen_2_dirs(){
-	f_mkdir(0, "user");
-
-	printf("\n\n\n\n END f_mkdir user \n\n\n\n");
-	f_mkdir(0, "spuser");
-	printf("\n\n\n\n END f_mkdir spuser \n\n\n\n");
-
-	f_opendir(0, "spuser");
-	printf("\n\n\n\n END f_opendir spuser \n\n\n\n");
-
-	prt_dir_data(0);
-	prt_fs();
-
-}
-
-int main(){
-	// one spb, one blk (4) inodes, 2 data blocks (one for root)
-	format_disk();
-	test_init_mount();
-	prt_fs();
-	prt_table();
-
-	printf("\n\n\n\n END OF INIT \n\n\n\n");
-	//printf("d entry size:%d, num:%d\n", sizeof(dir_entry_t), fs.spb.size/sizeof(dir_entry_t));
-
-
-
-	//prt_data_region();
-
-
-	//int next_inode = extract_next_free_inode();
-	//create_file_at_inode(next_inode, "test_data_file/data1.txt");
-	//int fd = f_open(0, "file1",OPEN_APPEND);
-	//test_create_and_append(fd);
-	//test_read_twice(fd);
-	test_fopen_2_dirs();
-	//f_close(fd);
-	
-	/*
-	int fd2 = f_open(0, "file1",OPEN_R);
-	test_read_twice(fd2);
-	f_close(fd2);*/
-	//f_mkdir(0, "dir1");
-	//test_fopen_invalid();	
-	prt_table();
-
-	free(fs.inodes);
-	free(fs.table.open_files);
-} 
-
-//// HELPER FUNCS ///// 
 

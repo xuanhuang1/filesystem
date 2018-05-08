@@ -12,8 +12,8 @@ extern fs_attr_t fs;
 int format_disk(){
 	int spb_size = 512;
 	int block_size = 512;
-	int inode_b_num = 1;
-	int data_b_num = 6;
+	int inode_b_num = 2;
+	int data_b_num = 8;
 
 	int i_offset = 0;
 	int d_offset = inode_b_num;

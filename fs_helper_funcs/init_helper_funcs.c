@@ -6,17 +6,6 @@
 
 extern fs_attr_t fs;
 
-int get_file_size(FILE *ptr_ipt, char** infile){
-	fseek(ptr_ipt, 0L, SEEK_END);
-	int sz = ftell(ptr_ipt);
-	rewind(ptr_ipt);
-
-	*infile = (char*)malloc(sz+1);
-	memset(*infile, 0, sz);
-	(*infile)[sz] = '\0';
-	if(sz < 1) printf("Can't get file size!\n");
-	return sz;
-}
 
 void set_spb(spb_t* spb, int i_offset, int d_offset, int block_size, int freei, int freeb){
 	spb->type = 0;

@@ -7,9 +7,9 @@ extern fs_attr_t fs;
 int extract_next_free_inode(){
 	int ret_index = fs.freeiHead;
 	fs.freeiHead = fs.inodes[fs.freeiHead].next_free_inode;
-	if(fs.freeiHead == -1){
+	if(ret_index == -1){
 		printf("no inode left!\n");
-		assert (fs.freeiHead != -1);
+		assert (ret_index != -1);
 		return FAIL;
 	}
 

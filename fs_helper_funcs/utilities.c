@@ -4,6 +4,32 @@
 extern fs_attr_t fs;
 
 
+int extract_next_free_block(){
+	int ret_index = fs.free_block_head;
+	char* the_free_block = get_one_data_block(ret_index, 0, fs.spb.size);
+	fs.free_block_head = *((int*)the_free_block);
+	if(fs.free_block_head == -1){
+		printf("no block left!\n");
+		assert (fs.free_block_head != -1);
+		return FAIL;
+	}
+	free(the_free_block);
+	printf("\textract free block:%d, set f head:%d\n", ret_index, fs.free_block_head);
+	return ret_index;
+}
+
+int free_this_block(int data_b_index){
+	int next_free = fs.free_block_head;
+	write_one_data_block(data_b_index, &next_free, 0, sizeof(int));
+	fs.free_block_head = data_b_index;
+	return SUCCESS;
+}
+int free_this_inode(int inode_index){
+	int next_free = fs.freeiHead;
+	fs.inodes[inode_index].next_free_inode = next_free;
+	fs.freeiHead = inode_index;
+	return SUCCESS;
+}
 
 // get data block by index
 void* get_one_data_block(int data_index, int offset, int length){
@@ -20,6 +46,18 @@ void* get_one_data_block(int data_index, int offset, int length){
 	return buffer;
 }
 
+
+int get_file_size_with_fseek(FILE *ptr_ipt, char** infile){
+	fseek(ptr_ipt, 0L, SEEK_END);
+	int sz = ftell(ptr_ipt);
+	rewind(ptr_ipt);
+
+	*infile = (char*)malloc(sz+1);
+	memset(*infile, 0, sz);
+	(*infile)[sz] = '\0';
+	if(sz < 1) printf("Can't get file size!\n");
+	return sz;
+}
 
 // read file with fread and check if success
 size_t read_with_fread(void* infile, int fsize, int count, FILE* ptr_ipt){
@@ -64,16 +102,3 @@ int write_one_data_block(int data_index, void* buffer, int offset, int length){
 	return size_written;
 }
 
-int extract_next_free_block(){
-	int ret_index = fs.free_block_head;
-	char* the_free_block = get_one_data_block(ret_index, 0, fs.spb.size);
-	fs.free_block_head = *((int*)the_free_block);
-	if(fs.free_block_head == -1){
-		printf("no block left!\n");
-		assert (fs.free_block_head != -1);
-		return FAIL;
-	}
-	free(the_free_block);
-	printf("\textract free block:%d, set f head:%d\n", ret_index, fs.free_block_head);
-	return ret_index;
-}
