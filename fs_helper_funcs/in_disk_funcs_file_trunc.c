@@ -9,7 +9,10 @@
 extern fs_attr_t fs;
 
 int delete_file_by_inode(int inode_index){
+	//printf("trunc %d, size %d\n", inode_index, fs.inodes[inode_index].size );
+
 	int result = trunc_file(&fs.inodes[inode_index]);
+	//printf("trunc %d\n", inode_index);
 	fs.inodes[inode_index].nlink = 0;
 	free_this_inode(inode_index);
 	return result;

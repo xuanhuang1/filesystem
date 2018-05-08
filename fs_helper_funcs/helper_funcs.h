@@ -69,6 +69,6 @@ int remove_last_entry_in_dir(int dir_index, dir_entry_t *ret_entry);
 int find_replace_dir_entry(int dir_index, char* filename, dir_entry_t *entry_to_write);
 int trunc_file(inode_t *inode);
 int delete_file_by_inode(int inode_index);
-
+int f_rmdir_recur(int dir_index, char* filename);
 int f_opendir(int dir_index, char* filename);
 #endif

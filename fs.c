@@ -248,7 +248,9 @@ int f_remove(int dir_index, char* filename){
 	// clear entry in parent dir
 	dir_entry_t last_dir_entry;
 	remove_last_entry_in_dir(dir_index, &last_dir_entry);
-	if(find_replace_dir_entry(dir_index, filename, &last_dir_entry) != FAIL){
+	int inode_of_file = find_replace_dir_entry(dir_index, filename, &last_dir_entry);
+	if(inode_of_file != FAIL){
+		delete_file_by_inode(inode_of_file);
 		fs.inodes[dir_index].children_num--;
 		fs.inodes[dir_index].size -= sizeof(dir_entry_t);
 	}else{
@@ -276,7 +278,7 @@ int f_opendir(int dir_index, char* filename){
 // return the first inode whose isdir == TRUE after the old i.nextfile
 int f_readdir(int fd, dir_entry_t *dir_read){
 	if(fs.inodes[fs.table.open_files[fd].ind].isdir == FALSE){
-		printf("!!Trying to read a non-directory with f_readdir!!\n");
+		printf("!!Trying to read a non-directory %d with f_readdir!!\n", fs.table.open_files[fd].ind);
 		assert (fs.inodes[fs.table.open_files[fd].ind].isdir == TRUE);
 		return FAIL;
 	}//printf("!!Trying to access a directory larger than cur size!!%d %d\n",
@@ -294,7 +296,7 @@ int f_readdir(int fd, dir_entry_t *dir_read){
 // same as f_close(fd)
 int f_closedir(int fd){
 	if(fs.inodes[fs.table.open_files[fd].ind].isdir == FALSE){
-		printf("!!Trying to close a non-directory with f_closedir!!\n");
+		printf("!!Trying to close a non-directory %d with f_closedir!!\n",fs.table.open_files[fd].ind );
 		assert (fs.inodes[fs.table.open_files[fd].ind].isdir == TRUE);
 		return FAIL;
 	}
@@ -327,40 +329,18 @@ int f_mkdir(int dir_index, char* filename){
 //    when all the child files/directories are removed 
 //    call f_remove(current_d, current_d.name) to remove the empty directory itself
 int f_rmdir(int dir_index, char* filename){
-	printf("Removing \"%s\" under:%d\n",filename, dir_index);
+	f_rmdir_recur(dir_index, filename);
 
-	int fd = f_opendir(dir_index, filename);
-	int this_dir_inode_num = fs.table.open_files[fd].ind;
-	if(fs.inodes[this_dir_inode_num].children_num == 0){
-		assert(fs.inodes[this_dir_inode_num].size == 0);
-		printf("remove empty dir %d\n", this_dir_inode_num);
-		fs.inodes[this_dir_inode_num].nlink = 0;
-		free_this_inode(this_dir_inode_num);
+	// clear entry in parent dir
+	dir_entry_t last_dir_entry;
+	remove_last_entry_in_dir(dir_index, &last_dir_entry);
+	int inode_of_file = find_replace_dir_entry(dir_index, filename, &last_dir_entry);
+	if(inode_of_file != FAIL){
+		fs.inodes[dir_index].children_num--;
+		fs.inodes[dir_index].size -= sizeof(dir_entry_t);
+	}else{
+		printf("the entry to remove: \"%s\" under inode[%d] does not exist\n", filename, dir_index);
 	}
-	printf("this dir: %d\n", fs.table.open_files[fd].ind);
-
-	f_rewind(fd);
-	for(int i=0; i<fs.inodes[this_dir_inode_num].children_num; i++){
-		dir_entry_t dir_entry;
-
-		f_readdir(fd, &dir_entry);
-		printf("\tthe next file to remove %d \"%s\" isdir?%d, under dir:%d\n", 
-			dir_entry.ind, dir_entry.name,
-			fs.inodes[dir_entry.ind].isdir, this_dir_inode_num);
-		if(fs.inodes[dir_entry.ind].isdir == FALSE){
-			printf("rm file %d\n", dir_entry.ind);
-
-			//trunc_file(&fs.inodes[dir_entry.ind]);
-			//fs.inodes[dir_entry.ind].nlink = 0;
-			delete_file_by_inode(dir_entry.ind);
-		}
-		else f_rmdir(this_dir_inode_num, dir_entry.name);
-	}
-	//trunc_file(&fs.inodes[this_dir_inode_num]);
-	//fs.inodes[this_dir_inode_num].nlink = 0;
-	delete_file_by_inode(this_dir_inode_num);
-
-
 	return SUCCESS;
 }
 

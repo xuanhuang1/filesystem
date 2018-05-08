@@ -140,10 +140,17 @@ void test_rmdir_with_3_files(){
 	create_file("file1", "test_data_file/append.txt", 1);
 	create_file("file2", "test_data_file/append.txt", 1);
 	create_file("file3", "test_data_file/append.txt", 1);
+	f_mkdir(1, "empty");
+
+	int fd2 = f_opendir(1, "empty");
+	create_file("file4", "test_data_file/append.txt", 5);
+	f_closedir(fd2);
+
+
 	prt_dir_data(1);
 	dir_entry_t dir;
 
-	f_rewind(1);
+	f_rewind(fd);
 	if(f_readdir(fd, &dir) == SUCCESS)
 		printf("dir entry: %d \"%s\"\n", dir.ind, dir.name);
 	else printf("Error read dir\n");
@@ -152,14 +159,17 @@ void test_rmdir_with_3_files(){
 		printf("dir entry: %d \"%s\"\n", dir.ind, dir.name);
 	else printf("Error read dir\n");
 
+	if(f_readdir(fd, &dir) == SUCCESS)
+		printf("dir entry: %d \"%s\"\n", dir.ind, dir.name);
+	else printf("Error read dir\n");
 	if(f_readdir(fd, &dir) == SUCCESS)
 		printf("dir entry: %d \"%s\"\n", dir.ind, dir.name);
 	else printf("Error read dir\n");
 	printf("\n\n\nRM DIR\n\n\n");
+	prt_fs();
 
 	f_rmdir(0, "user");
 	prt_fs();
-	f_closedir(fd);
 
 }
 
@@ -181,7 +191,7 @@ int main(){
 	//int next_inode = extract_next_free_inode();
 	//create_file_at_inode(next_inode, "test_data_file/data1.txt");
 	//int fd = f_open(0, "file1",OPEN_APPEND);
-	test_rmdir_with_3_files();
+	test_fopen_lv2_dir_newfile();
 	//test_read_twice(fd);
 	//f_remove(0, "file1");
 	//prt_fs();

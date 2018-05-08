@@ -17,7 +17,7 @@ int read_dblock(inode_t* inode, int read_size, int start_db_i, int offset, void*
 		if(i == start_db_i){size_read_to -= offset;}
 
 		if(read_size - bytes_read < size_read_to) size_read_to = read_size - bytes_read;
-		printf("\nreading into buffer at %d to %d\n", bytes_read, bytes_read+size_read_to-1);
+		//printf("\nreading into buffer at %d to %d\n", bytes_read, bytes_read+size_read_to-1);
 		
 		char* buffer = (char*)malloc(size_read_to+1);
 		buffer[size_read_to] = '\0';
@@ -32,7 +32,7 @@ int read_dblock(inode_t* inode, int read_size, int start_db_i, int offset, void*
 
 		bytes_read+= this_read;
 
-		printf("------bytes_left: %d------\n", read_size - bytes_read);
+		//printf("------bytes_left: %d------\n", read_size - bytes_read);
 		if(read_size == bytes_read) return read_size;
 	}
 	return bytes_read;
@@ -48,11 +48,11 @@ int read_file_by_inode(f_entry_t* the_file_entry, void* out_buff, int len){
 	if(inode->size < len + the_file_entry->offset) 
 		size_to_read = inode->size - the_file_entry->offset;
 
-	printf("Start reading, len buff:%d\n", len);
+	//printf("Start reading, len buff:%d\n", len);
 	if(the_file_entry->offset < N_DBLOCKS*fs.spb.size){
 		int db_index = the_file_entry->offset/fs.spb.size;
 		int offset = the_file_entry->offset%(fs.spb.size);
-		printf("\tReading from dbindex:%d offset:%d\n", db_index, offset);
+		//printf("\tReading from dbindex:%d offset:%d\n", db_index, offset);
 
 		assert(db_index < 10);
 		assert(offset < fs.spb.size);

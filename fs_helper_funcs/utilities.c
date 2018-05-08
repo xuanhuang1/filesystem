@@ -14,7 +14,7 @@ int extract_next_free_block(){
 		return FAIL;
 	}
 	free(the_free_block);
-	printf("\textract free block:%d, set f head:%d\n", ret_index, fs.free_block_head);
+	//printf("\textract free block:%d, set f head:%d\n", ret_index, fs.free_block_head);
 	return ret_index;
 }
 
@@ -22,6 +22,8 @@ int free_this_block(int data_b_index){
 	int next_free = fs.free_block_head;
 	write_one_data_block(data_b_index, &next_free, 0, sizeof(int));
 	fs.free_block_head = data_b_index;
+	//printf("set freei b %d->%d\n", fs.free_block_head, next_free);
+
 	return SUCCESS;
 }
 int free_this_inode(int inode_index){
@@ -39,7 +41,7 @@ void* get_one_data_block(int data_index, int offset, int length){
 	char* buffer = (char*)malloc(length+1);
 	buffer[length] = '\0';
 	int data_offset_on_disk = fs.spb.size+fs.spb.size*(fs.spb.data_offset+data_index);
-	printf("\n***get data_off_on_disk %d+%d len:%d***\n", data_offset_on_disk, offset, length);
+	//printf("\n***get data_off_on_disk %d+%d len:%d***\n", data_offset_on_disk, offset, length);
 	fseek(ptr_ipt, data_offset_on_disk+offset, SEEK_SET);
 	read_with_fread(buffer, length, 1, ptr_ipt);
 	fclose(ptr_ipt);
@@ -73,7 +75,7 @@ int read_one_data_block(int data_index, char* buffer, int offset, int length){
 
 	assert (ptr_ipt != NULL);
 	int data_offset_on_disk = fs.spb.size+fs.spb.size*(fs.spb.data_offset+data_index);
-	printf("\n***read data_off_on_disk %d+%d len:%d***\n", data_offset_on_disk, offset, length);
+	//printf("\n***read data_off_on_disk %d+%d len:%d***\n", data_offset_on_disk, offset, length);
 	fseek(ptr_ipt, data_offset_on_disk+offset, SEEK_SET);
 	int size_read = read_with_fread(buffer, length, 1, ptr_ipt);
 	fclose(ptr_ipt);
@@ -94,7 +96,7 @@ int write_one_data_block(int data_index, void* buffer, int offset, int length){
 
 	assert (ptr_ipt != NULL);
 	int data_offset_on_disk = fs.spb.size+fs.spb.size*(fs.spb.data_offset+data_index);
-	printf("\twrite data_off_on_disk %d+%d len=%d. with datablock index: %d\n", data_offset_on_disk, offset, length, data_index);
+	//printf("\twrite data_off_on_disk %d+%d len=%d. with datablock index: %d\n", data_offset_on_disk, offset, length, data_index);
 	fseek(ptr_ipt, data_offset_on_disk+offset, SEEK_SET);
 	int size_written = write_with_fwrite(buffer, length, 1,  ptr_ipt);
 	fclose(ptr_ipt);

@@ -27,7 +27,7 @@ int write_dblock(inode_t* inode, int write_size, int start_db_i, int offset, voi
 		//printf("the buffer after set:%s\n", buffer);
 		
 		memcpy(buffer, in_buff+bytes_written, size_write_to);
-		printf("\tcopying %d to %d\n", bytes_written, bytes_written+size_write_to-1);
+		//printf("\tcopying %d to %d\n", bytes_written, bytes_written+size_write_to-1);
 		//printf("the buffer:%s\n", buffer);
 
 		if(i == start_db_i)
@@ -39,7 +39,7 @@ int write_dblock(inode_t* inode, int write_size, int start_db_i, int offset, voi
 
 		bytes_written += this_write;
 
-		printf("------bytes_left: %d------\n", write_size - bytes_written);
+		//printf("------bytes_left: %d------\n", write_size - bytes_written);
 
 		if(write_size == bytes_written) return write_size;
 
@@ -54,7 +54,7 @@ int write_iblock(inode_t* inode, int write_size, int start_db_i, int offset, voi
 
 
 int write_file_by_inode(f_entry_t* the_file_entry, void* buff, int len){
-	printf("\toriginal file: len buff:%d\n", len);
+	//printf("\toriginal file: len buff:%d\n", len);
 	//printf("***%s***\n", buff);
 	int size_to_write = len;
 	int bytes_written = 0;
@@ -75,15 +75,15 @@ int write_file_by_inode(f_entry_t* the_file_entry, void* buff, int len){
 			len_to_write = N_DBLOCKS*fs.spb.size - the_file_entry->offset;
 		int db_index = the_file_entry->offset/fs.spb.size;
 		int offset = the_file_entry->offset%(fs.spb.size);
-		printf("\tDB: writing:%d bytes in db, ", len_to_write);
-		printf("starting at dbindex:%d offset:%d\n", db_index, offset);
+		//printf("\tDB: writing:%d bytes in db, ", len_to_write);
+		//printf("starting at dbindex:%d offset:%d\n", db_index, offset);
 
 		assert(db_index < 10);
 		assert(offset < fs.spb.size);
 		bytes_written += write_dblock(inode, size_to_write, db_index, offset, buff);
 		size_to_write -= bytes_written;
 	}
-	printf("\ttotal len left:%d\n", size_to_write);
+	//printf("\ttotal len left:%d\n", size_to_write);
 	
 	
 	inode->size =  the_file_entry->offset+bytes_written;

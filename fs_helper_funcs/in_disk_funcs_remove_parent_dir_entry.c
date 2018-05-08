@@ -126,20 +126,20 @@ int find_replace_dir_entry_in_one_block(int index, char* filename, int* count, d
 			//trunc_file(&fs.inodes[entris[j].ind]);
 			//fs.inodes[entris[j].ind].nlink = 0;
 			//free_this_inode(entris[j].ind);
-			delete_file_by_inode(entris[j].ind);
-
+			//delete_file_by_inode(entris[j].ind);
+			int ret_val = entris[j].ind;
 			free(entris);
-			return SUCCESS;
+			return ret_val;
 		}
 		(*count)--;
 		if(!(*count)){
 			free(entris);
 			printf("use up counts\n");
-			return FAIL;
+			return EMPTY_ENTRY;
 		}
 	}
 	free(entris);
-	return FAIL;
+	return EMPTY_ENTRY;
 }
 
 int find_replace_dir_entry(int dir_index, char* filename, dir_entry_t *entry_to_write){
@@ -152,13 +152,13 @@ int find_replace_dir_entry(int dir_index, char* filename, dir_entry_t *entry_to_
 	int num_to_search = the_dir.children_num;
 	if(num_to_search < 1){
 		printf("try to search and replace dir entry in an empty directory %d\n", dir_index);
-		return FAIL;
+		return EMPTY_ENTRY;
 	}
 
 	// check dblocks
 	for (int i = 0; i < N_DBLOCKS; ++i){
 		int temp = find_replace_dir_entry_in_one_block(the_dir.dblocks[i], filename, &num_to_search, entry_to_write);
-		if((!num_to_search)|| (temp == SUCCESS) )  return temp;
+		if((!num_to_search)|| (temp != EMPTY_ENTRY) )  return temp;
 	}
 
 	for (int i = 0; i < N_IBLOCKS; ++i){
@@ -167,7 +167,7 @@ int find_replace_dir_entry(int dir_index, char* filename, dir_entry_t *entry_to_
 		for (int j = 0; j < table_len; ++j){
 			printf("idirect %d\n", table[j]);
 			int temp = find_replace_dir_entry_in_one_block(table[j], filename, &num_to_search, entry_to_write);
-			if((!num_to_search)|| (temp == SUCCESS)){ 
+			if((!num_to_search)|| (temp != EMPTY_ENTRY)){ 
 				free(table);
 				return temp;
 			}
@@ -183,7 +183,7 @@ int find_replace_dir_entry(int dir_index, char* filename, dir_entry_t *entry_to_
 			for (int j = 0; j < table_len; ++j){
 				printf("2direct %d\n", table[j]);
 				int temp = find_replace_dir_entry_in_one_block(table[j], filename, &num_to_search, entry_to_write);
-				if((!num_to_search)|| (temp == SUCCESS)){ 
+				if((!num_to_search)|| (temp != EMPTY_ENTRY)){ 
 					free(table);
 					free(table2);
 					return temp;
@@ -204,7 +204,7 @@ int find_replace_dir_entry(int dir_index, char* filename, dir_entry_t *entry_to_
 				for (int j = 0; j < table_len; ++j){
 					printf("3direct %d\n", table[j]);
 					int temp = find_replace_dir_entry_in_one_block(table[j], filename, &num_to_search, entry_to_write);
-					if((!num_to_search)|| (temp == SUCCESS)){ 
+					if((!num_to_search)|| (temp != EMPTY_ENTRY)){ 
 						free(table);
 						free(table2);
 						free(table3);
