@@ -27,7 +27,7 @@ int get_inode_in_open_table(int index){
 			return i;
 		}
 	}
-	return FAIL;
+	return EMPTY_ENTRY;
 }
 
 

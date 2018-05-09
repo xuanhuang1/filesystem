@@ -12,6 +12,10 @@ int test_init_mount(char* filename){
 	// read the size of file
 	// init write buffer
 	FILE *ptr_ipt = fopen(filename,"r");
+	if(!ptr_ipt){
+		printf("No disk \"%s\" found. run format to generate\n", filename);
+		return FAIL;
+	}
 	char *infile_buff = NULL;
 	int sz = get_file_size_with_fseek(ptr_ipt, &infile_buff);
 

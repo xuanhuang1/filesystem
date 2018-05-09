@@ -33,7 +33,7 @@ int format_disk(){
 	int inode_count = get_inode_count(*spb);
 
 	prt_spb(*spb);
-	prt_root(*root);
+	//prt_root(0);
 	//printf("inode count:%d\n", inode_count);
 
 	// fill the rest with empty inodes

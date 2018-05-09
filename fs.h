@@ -96,8 +96,8 @@ struct fs_attr_t{
 	int data_block_num;
 	int u_gid[MAXUSER];    	// stores the group ID, the index is the user ID
 	int user;         		// current user ID
-	inode_t *shell_d;
-	inode_t *root;
+	int shell_d;
+	int root;
 	int freeiHead;
 	f_entry_table_t table;  // table of opened files, initialized to have only the root and -1s
 	char* dataBeginPos;     // ptr to the start of data region

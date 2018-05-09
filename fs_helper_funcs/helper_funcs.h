@@ -24,7 +24,7 @@ fs_attr_t* f_unmount(char *dir, int flags);
 
 
 void prt_spb(spb_t spb);
-void prt_root(inode_t root);
+void prt_root(int root);
 void prt_inode(inode_t);
 void prt_data_region();
 void prt_fs();
@@ -58,6 +58,7 @@ int read_one_data_block(int data_index, char* buffer, int offset, int length);
 
 int format_disk();
 int search_file_in_dir(int the_dir, char* filename);
+char* search_name_in_dir(int dir_index, int file_index);
 int write_file_by_inode(f_entry_t* the_file_entry, void* buff, int len);
 int read_file_by_inode(f_entry_t* the_file_entry, void* out_buff, int len);
 

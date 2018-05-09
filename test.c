@@ -1,6 +1,7 @@
 #include "fs.h"
 #include "fs_helper_funcs/helper_funcs.h"
 
+#include "fsCmds.h"
 
 extern fs_attr_t fs;
 
@@ -76,6 +77,8 @@ void test_read_twice(int fd){
 }
 
 void test_fopen_lv2_dir_newfile(){
+	printf("\n\n\nTEST: open 2 files under dir user(1) and rm file1 \n\n\n");
+
 	f_mkdir(0, "user");
 
 	int fd_dir = f_opendir(0, "user");
@@ -92,6 +95,8 @@ void test_fopen_lv2_dir_newfile(){
 }
 
 void test_fopen_2_dirs(){
+	printf("\n\n\nTEST: open 2 dir user and spuser under root(0)\n\n\n");
+
 	f_mkdir(0, "user");
 
 	printf("\n\n\n\n END f_mkdir user \n\n\n\n");
@@ -173,17 +178,131 @@ void test_rmdir_with_3_files(){
 
 }
 
+void test_search_name(){
+	printf("\n\n\nTEST: find the name /root/user/file1\n\n\n");
+	f_mkdir(0, "user");
+	int fd = f_opendir(0, "user");
+	create_file("file1", "test_data_file/append.txt", 1);
+
+	printf("Start searching for name\n");
+	char* name = search_name_in_dir(1,2);
+	printf("the name found:%s\n", name);
+	free(name);
+}
+
+//////////////// fsCmds test /////////////////
+void test_ls(){
+	printf("\n\n\nTEST: ls /root : file1 file2 file3\n\n\n");
+	create_file("file1", "test_data_file/append.txt", fs.root);
+	create_file("file2", "test_data_file/append.txt", fs.root);
+	create_file("file3", "test_data_file/append.txt", fs.root);
+	shell_ls();
+	//shell_cd("/lv1/lv2");
+}
+
+void test_pwd(){
+	printf("\n\n\nTEST: prt path at /root/lv1/lv2\n\n\n");
+	f_mkdir(0, "lv1");
+	int fd = f_opendir(0, "lv1");
+	f_mkdir(1, "lv2");
+	int fd2 = f_opendir(1, "lv2");
+	fs.shell_d = 2;
+	shell_pwd();
+	//shell_cd("/lv1/lv2");
+}
+
+
+void test_cd(){
+	printf("\n\n\nTEST: cd to /root/lv1/lv2\n\n\n");
+	f_mkdir(0, "lv1");
+	int fd = f_opendir(0, "lv1");
+	f_mkdir(1, "lv2");
+	int fd2 = f_opendir(1, "lv2");
+	//fs.shell_d = 2;
+	shell_cd("/lv1/lv2");
+
+	shell_pwd();
+}
+
+void test_shell_mkdir(){
+	printf("\n\n\nTEST: make dir \"dir\" under /root and cd in it\n\n\n");
+	shell_mkdir("/lv1");
+	shell_cd("./lv1");
+	shell_pwd();
+
+	//fs.shell_d = 2;
+
+}
+
+void test_shell_lv2_mkdir(){
+	printf("\n\n\nTEST: make dir \"dir\" under /root then \"dir2\" under it\n\n\n");
+	shell_mkdir("/dir1");
+	//f_opendir(0, "dir1");
+	shell_mkdir("/dir1/dir2");
+
+	shell_cd("./dir1/dir2");
+	shell_pwd();
+
+	//fs.shell_d = 2;
+
+}
+
+void test_shell_rmdir_with_3_files(){
+	printf("\n\n\nTEST: remove /root/user(ind=1) and its 3 children\n\n\n");
+	f_mkdir(0, "user");
+	int fd = f_opendir(0, "user");
+	create_file("file1", "test_data_file/append.txt", 1);
+	create_file("file2", "test_data_file/append.txt", 1);
+	create_file("file3", "test_data_file/append.txt", 1);
+	f_mkdir(1, "empty");
+
+	int fd2 = f_opendir(1, "empty");
+	create_file("file4", "test_data_file/append.txt", 5);
+	f_closedir(fd2);
+
+
+	prt_dir_data(1);
+	dir_entry_t dir;
+
+	f_rewind(fd);
+	if(f_readdir(fd, &dir) == SUCCESS)
+		printf("dir entry: %d \"%s\"\n", dir.ind, dir.name);
+	else printf("Error read dir\n");
+
+	if(f_readdir(fd, &dir) == SUCCESS)
+		printf("dir entry: %d \"%s\"\n", dir.ind, dir.name);
+	else printf("Error read dir\n");
+
+	if(f_readdir(fd, &dir) == SUCCESS)
+		printf("dir entry: %d \"%s\"\n", dir.ind, dir.name);
+	else printf("Error read dir\n");
+	if(f_readdir(fd, &dir) == SUCCESS)
+		printf("dir entry: %d \"%s\"\n", dir.ind, dir.name);
+	else printf("Error read dir\n");
+	prt_fs();
+	
+	printf("\n\n\nRM DIR\n\n\n");
+
+	shell_rmdir("/user");
+	prt_fs();
+
+}
+
 int main(){
 	// one spb, one blk (4) inodes, 2 data blocks (one for root)
-	format_disk();
-	test_init_mount("disk");
+	if(shell_mount("disk") == FAIL){
+		format_disk();
+		shell_mount("disk");
+	}
+
+	//test_init_mount("disk");
 	prt_fs();
 	prt_table();
 
 	printf("\n\n\n\n END OF INIT \n\n\n\n");
 	//printf("d entry size:%d, num:%d\n", sizeof(dir_entry_t), fs.spb.size/sizeof(dir_entry_t));
 
-
+	test_shell_rmdir_with_3_files();
 
 	//prt_data_region();
 
@@ -191,7 +310,7 @@ int main(){
 	//int next_inode = extract_next_free_inode();
 	//create_file_at_inode(next_inode, "test_data_file/data1.txt");
 	//int fd = f_open(0, "file1",OPEN_APPEND);
-	test_fopen_lv2_dir_newfile();
+	//test_fopen_lv2_dir_newfile();
 	//test_read_twice(fd);
 	//f_remove(0, "file1");
 	//prt_fs();
@@ -207,10 +326,11 @@ int main(){
 	f_close(fd2);*/
 	//f_mkdir(0, "dir1");
 	//test_fopen_invalid();	
-	prt_table();
+	//prt_table();
 
-	free(fs.inodes);
-	free(fs.table.open_files);
+	//free(fs.inodes);
+	//free(fs.table.open_files);
+	shell_unmount(0);
 } 
 
 //// HELPER FUNCS ///// 

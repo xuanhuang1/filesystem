@@ -51,8 +51,8 @@ void load_fs(spb_t spb, int user_in, inode_t* inodes_arr, int inodes_arr_len, ch
 	for (int i = 0; i < inodes_arr_len; ++i)
 		fs.inodes[i] = inodes_arr[i];
 
-	fs.root = &fs.inodes[0];
-	fs.shell_d = fs.root;
+	fs.root = 0;
+	fs.shell_d = 0;
 	fs.freeiHead = spb.free_inode;
 	fs.free_block_head = spb.free_block;
 

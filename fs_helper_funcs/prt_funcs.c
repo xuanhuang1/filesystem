@@ -11,12 +11,13 @@
 extern fs_attr_t fs;
 
 void prt_spb(spb_t spb){
-	printf("spb:  \ttype:%d size:%d ioff:%d dataoff:%d freei:%d freeb:%d\n",
+	printf("spb:  \t\ttype:%d size:%d ioff:%d dataoff:%d freei:%d freeb:%d\n",
 			spb.type, spb.size, spb.inode_offset, spb.data_offset,
 			spb.free_inode, spb.free_block);
 }
 
-void prt_root(inode_t root){
+void prt_root(int root_num){
+	inode_t root = fs.inodes[root_num];
 	printf("(0) root: \tdir:%d parent:%d children_num:%d nlink:%d dblocks[0]:%d size:%d\n",
 			root.isdir, root.parent, root.children_num, root.nlink, root.dblocks[0], root.size);
 }
@@ -62,9 +63,9 @@ void prt_fs(){
 	printf("=======================\n");
 	printf("size of inode:%ld\n", sizeof(inode_t));
 	prt_spb(fs.spb);
-	printf("size_block: %d, free_i_head: %d, free_b_head: %d\n", fs.spb.size, fs.freeiHead, fs.free_block_head);
+	printf("size_block:%d\tfree_i_head: %d\tfree_b_head: %d\n", fs.spb.size, fs.freeiHead, fs.free_block_head);
 	printf("\n");
-	prt_root(*(fs.root));
+	prt_root(fs.root);
 	int inode_count = get_inode_count(fs.spb);
 	for (int i = 0; i < inode_count-1; ++i){
 		printf("(%d) ",i+1 );
